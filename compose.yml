@@ -1,11 +1,11 @@
 services:
   db:
     image: pgvector/pgvector:pg17
-    container_name: rag-pgvector
+    container_name: supportflowai-pgvector
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: ragdb
+      POSTGRES_DB: supportflowai
     ports:
       - "5433:5432"
     volumes:
