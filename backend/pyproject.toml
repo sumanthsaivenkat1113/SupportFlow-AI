@@ -8,5 +8,6 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "psycopg[binary]>=3.3.5",
     "pydantic-settings>=2.15.0",
+    "pypdf>=6.18.1",
     "sqlalchemy>=2.0.52",
 ]
