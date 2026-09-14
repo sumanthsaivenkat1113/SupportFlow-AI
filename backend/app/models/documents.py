@@ -1,7 +1,14 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,7 +26,10 @@ class Document(Base):
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        ForeignKey(
+            "workspaces.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
@@ -56,5 +66,12 @@ class Document(Base):
     )
 
     workspace: Mapped["Workspace"] = relationship(
+        "Workspace",
         back_populates="documents",
+    )
+
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
     )

@@ -3,7 +3,12 @@ from logging.config import fileConfig
 from alembic import context
 
 from app.core.database import Base, engine
+
+# Import all models so Alembic can detect their tables
 from app.models.user import User
+from app.models.workspaces import Workspace
+from app.models.documents import Document
+from app.models.document_chunks import DocumentChunk
 
 # Alembic Config object
 config = context.config
@@ -25,7 +30,9 @@ def run_migrations_offline() -> None:
         url=str(engine.url),
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        dialect_opts={
+            "paramstyle": "named",
+        },
     )
 
     with context.begin_transaction():
