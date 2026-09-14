@@ -1,15 +1,19 @@
-from app.core.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.users import router as users_router
+from app.api.workspaces import router as workspaces_router
+from app.core.config import settings
 
 app = FastAPI(
     title="SupportFlow AI API",
 )
 
 
+# ------------------------------------------------------------
 # CORS
+# ------------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,8 +25,17 @@ app.add_middleware(
 )
 
 
+# ------------------------------------------------------------
 # Routes
+# ------------------------------------------------------------
+
 app.include_router(users_router)
+app.include_router(workspaces_router)
+
+
+# ------------------------------------------------------------
+# Root
+# ------------------------------------------------------------
 
 
 @app.get("/")
