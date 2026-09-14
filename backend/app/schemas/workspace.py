@@ -1,7 +1,14 @@
+from enum import Enum
 import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+
+
+class ChunkingStrategy(str, Enum):
+    SEMANTIC = "Semantic"
+    TOKEN_BASED_500 = "token_based_500"
+    STRUCTURE_AWARE = "Structure_aware"
 
 
 class WorkspaceResponse(BaseModel):
@@ -25,3 +32,5 @@ class WorkspaceCreateResponse(BaseModel):
     workspace_name: str
     pdf_files: list[WorkspaceDocumentResponse]
     total_pdf_files: int
+    chunking_strategy: ChunkingStrategy
+    no_of_chunks: int

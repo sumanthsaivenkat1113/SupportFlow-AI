@@ -1,7 +1,7 @@
 import asyncio
 import os
 import random
-
+from app.core.config import settings
 from google import genai
 from google.genai import types
 
@@ -14,7 +14,7 @@ MAX_CONCURRENT_REQUESTS = 5
 MAX_RETRIES = 4
 
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 def _embed_text(
