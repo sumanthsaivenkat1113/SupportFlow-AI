@@ -8,6 +8,7 @@ from app.core.auth import CurrentClerkId
 from app.core.database import get_db
 from app.models.workspaces import Workspace
 from app.services.user_service import create_or_sync_user
+from app.models.documents import Document
 
 
 def get_current_user(
@@ -43,3 +44,29 @@ def get_owned_workspace(
 
 
 OwnedWorkspace = Annotated[Workspace, Depends(get_owned_workspace)]
+
+from app.models.documents import Document
+
+
+def get_owned_document(
+    document_id: UUID,
+    workspace: OwnedWorkspace,
+    db: Annotated[Session, Depends(get_db)],
+) -> Document:
+    """Fetch a document by id, ensuring it belongs to the owned workspace."""
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == document_id,
+            Document.workspace_id == workspace.id,
+        )
+        .first()
+    )
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return document
+
+
+OwnedDocument = Annotated[Document, Depends(get_owned_document)]

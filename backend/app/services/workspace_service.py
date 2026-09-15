@@ -163,7 +163,7 @@ async def _process_pdf(
 
 
 # ============================================================
-# Public service API
+# Workspace public service API
 # ============================================================
 
 
@@ -391,4 +391,84 @@ def get_workspace_status(*, db: Session, workspace: Workspace) -> dict:
             }
             for d in documents
         ],
+    }
+
+
+# ============================================================
+# Document public service API
+# ============================================================
+
+
+def list_documents_for_workspace(*, db: Session, workspace: Workspace) -> dict:
+    """Return all documents in a workspace, each with its chunk count."""
+
+    documents = (
+        db.query(Document)
+        .filter(Document.workspace_id == workspace.id)
+        .order_by(Document.created_at.asc())
+        .all()
+    )
+
+    document_response = []
+    for document in documents:
+        chunk_count = (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.document_id == document.id)
+            .count()
+        )
+        document_response.append(
+            {
+                "id": document.id,
+                "workspace_id": document.workspace_id,
+                "file_name": document.file_name,
+                "status": document.status,
+                "chunk_count": chunk_count,
+                "created_at": document.created_at,
+                "updated_at": document.updated_at,
+            }
+        )
+
+    return {
+        "success": True,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "total_documents": len(document_response),
+        "documents": document_response,
+    }
+
+
+def delete_document_from_workspace(
+    *,
+    db: Session,
+    workspace: Workspace,
+    document: Document,
+) -> dict:
+    """Delete a document and all of its chunks."""
+
+    document_id = document.id
+    workspace_id = workspace.id
+
+    try:
+        # 1. Delete chunks for this document
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete(
+            synchronize_session=False
+        )
+
+        # 2. Delete the document itself
+        db.delete(document)
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete document",
+        ) from exc
+
+    return {
+        "success": True,
+        "message": "Document deleted successfully",
+        "workspace_id": workspace_id,
+        "document_id": document_id,
     }

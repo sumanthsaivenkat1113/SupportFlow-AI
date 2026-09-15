@@ -1,5 +1,4 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
@@ -11,6 +10,8 @@ from app.schemas.workspace import (
     WorkspaceCreateResponse,
 )
 from app.services import workspace_service
+
+from . import documents
 
 router = APIRouter(
     prefix="/api/workspaces",
@@ -90,3 +91,11 @@ def get_workspace_status(
     db: Annotated[Session, Depends(get_db)],
 ):
     return workspace_service.get_workspace_status(db=db, workspace=workspace)
+
+
+# ============================================================
+# Sub-routers
+# ============================================================
+
+# Document routes: /api/workspaces/{workspace_id}/documents
+router.include_router(documents.router)
