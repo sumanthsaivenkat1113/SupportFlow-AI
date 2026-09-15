@@ -12,6 +12,7 @@ from app.schemas.workspace import (
 from app.services import workspace_service
 
 from . import documents
+from . import tickets as tickets_router
 
 router = APIRouter(
     prefix="/api/workspaces",
@@ -99,3 +100,5 @@ def get_workspace_status(
 
 # Document routes: /api/workspaces/{workspace_id}/documents
 router.include_router(documents.router)
+
+router.include_router(tickets_router.router)

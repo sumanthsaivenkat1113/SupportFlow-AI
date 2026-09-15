@@ -10,6 +10,9 @@ from app.models.workspaces import Workspace
 from app.services.user_service import create_or_sync_user
 from app.models.documents import Document
 
+from app.models.ticket_imports import TicketImport
+from app.models.tickets import Ticket
+
 
 def get_current_user(
     clerk_id: CurrentClerkId,
@@ -70,3 +73,45 @@ def get_owned_document(
 
 
 OwnedDocument = Annotated[Document, Depends(get_owned_document)]
+
+
+def get_owned_ticket_import(
+    import_id: UUID,
+    workspace: OwnedWorkspace,
+    db: Annotated[Session, Depends(get_db)],
+) -> TicketImport:
+    ticket_import = (
+        db.query(TicketImport)
+        .filter(
+            TicketImport.id == import_id,
+            TicketImport.workspace_id == workspace.id,
+        )
+        .first()
+    )
+    if not ticket_import:
+        raise HTTPException(status_code=404, detail="Ticket import not found")
+    return ticket_import
+
+
+OwnedTicketImport = Annotated[TicketImport, Depends(get_owned_ticket_import)]
+
+
+def get_owned_ticket(
+    ticket_id: UUID,
+    workspace: OwnedWorkspace,
+    db: Annotated[Session, Depends(get_db)],
+) -> Ticket:
+    ticket = (
+        db.query(Ticket)
+        .filter(
+            Ticket.id == ticket_id,
+            Ticket.workspace_id == workspace.id,
+        )
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return ticket
+
+
+OwnedTicket = Annotated[Ticket, Depends(get_owned_ticket)]
