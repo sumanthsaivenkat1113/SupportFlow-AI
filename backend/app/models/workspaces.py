@@ -46,3 +46,15 @@ class Workspace(Base):
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
+
+    ticket_imports: Mapped[list["TicketImport"]] = relationship(
+        "TicketImport",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+    )
+
+    tickets: Mapped[list["Ticket"]] = relationship(
+        "Ticket",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+    )
