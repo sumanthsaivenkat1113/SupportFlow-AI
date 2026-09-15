@@ -219,6 +219,7 @@ async def create_workspace_with_files(
     return WorkspaceCreateResponse(
         success=True,
         message="workspace successfully created",
+        workspace_id=workspace.id,
         workspace_name=workspace.name,
         pdf_files=response_files,
         total_pdf_files=len(response_files),

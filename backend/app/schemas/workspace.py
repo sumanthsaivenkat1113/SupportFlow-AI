@@ -1,5 +1,6 @@
 from enum import Enum
 import uuid
+from uuid import UUID
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -29,6 +30,7 @@ class WorkspaceDocumentResponse(BaseModel):
 class WorkspaceCreateResponse(BaseModel):
     success: bool
     message: str
+    workspace_id: UUID
     workspace_name: str
     pdf_files: list[WorkspaceDocumentResponse]
     total_pdf_files: int
