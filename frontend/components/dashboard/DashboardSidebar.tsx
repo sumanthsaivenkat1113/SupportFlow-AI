@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 
 const navigationItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Workspaces", href: "/workspaces", icon: FolderKanban },
+  { label: "Workspaces", href: "/workspaces/create", icon: FolderKanban },
   { label: "Knowledge Base", href: "/knowledge-base", icon: Sparkles },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
