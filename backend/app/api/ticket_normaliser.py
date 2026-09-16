@@ -1,15 +1,15 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.services import ticket_normaliser as service
-from schemas.ticket_normaliser import (
+from app.schemas.ticket_normaliser import (
     DeleteResponse,
     TicketNormalizationRequest,
     TicketNormalizationResponse,
 )
+from app.services import ticket_normaliser as service
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/tickets-normalization",
@@ -25,7 +25,7 @@ router = APIRouter(
 async def create_tickets_normalization(
     workspace_id: UUID,
     payload: TicketNormalizationRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     try:
         record = await service.create_normalization(
@@ -52,11 +52,11 @@ async def create_tickets_normalization(
     "",
     response_model=TicketNormalizationResponse,
 )
-async def get_tickets_normalization(
+def get_tickets_normalization(
     workspace_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    record = await service.get_normalization(
+    record = service.get_normalization(
         db=db,
         workspace_id=workspace_id,
     )
@@ -79,11 +79,11 @@ async def get_tickets_normalization(
     "",
     response_model=DeleteResponse,
 )
-async def delete_tickets_normalization(
+def delete_tickets_normalization(
     workspace_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    deleted = await service.delete_normalizations(
+    deleted = service.delete_normalizations(
         db=db,
         workspace_id=workspace_id,
     )

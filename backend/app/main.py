@@ -4,6 +4,7 @@ from fastapi.openapi.utils import get_openapi
 
 from app.api.users import router as users_router
 from app.api.workspaces import router as workspaces_router
+from app.api.ticket_normaliser import router as ticket_normalise
 from app.core.config import settings
 
 app = FastAPI(
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(users_router)
 app.include_router(workspaces_router)
+app.include_router(ticket_normalise)
 
 
 # ------------------------------------------------------------
