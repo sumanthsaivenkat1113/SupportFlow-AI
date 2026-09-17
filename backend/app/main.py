@@ -5,7 +5,10 @@ from fastapi.openapi.utils import get_openapi
 from app.api.users import router as users_router
 from app.api.workspaces import router as workspaces_router
 from app.api.ticket_normaliser import router as ticket_normalise
-from app.api.ticket_classifier import router as ticket_classifier_router
+from app.api.ticket_classifier import (
+    global_router as ticket_classifier_global_router,
+    router as ticket_classifier_router,
+)
 from app.core.config import settings
 
 app = FastAPI(
@@ -35,6 +38,11 @@ app.add_middleware(
 app.include_router(users_router)
 app.include_router(workspaces_router)
 app.include_router(ticket_normalise)
+
+# Register the global (workspace-less) list route BEFORE the
+# workspace-scoped router, so `/workspaces/ticket-classifications`
+# is matched before any `/workspaces/{workspace_id}/...` patterns.
+app.include_router(ticket_classifier_global_router)
 app.include_router(ticket_classifier_router)
 
 

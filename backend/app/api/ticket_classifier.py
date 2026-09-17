@@ -8,26 +8,26 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     status,
 )
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 
-from app.models.ticket_classification import (
-    TicketClassification,
-)
-
-from app.models.workspaces import (
-    Workspace,
-)
-
 from app.schemas.ticket_classifier import (
+    GlobalClassifiedTicket,
+    GlobalTicketClassification,
+    GlobalTicketClassificationListResponse,
     TicketClassificationResponse,
 )
 
 from app.services import (
     ticket_classifier as service,
+)
+from app.services.exceptions import (
+    NotFoundError,
+    ValidationError,
 )
 
 # ============================================================
@@ -38,17 +38,141 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# ROUTER
+# ROUTERS
 # ============================================================
 
+# Workspace-scoped: POST + GET one
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/ticket-classifications",
     tags=["Ticket Classification"],
 )
 
+# Global: list all classifications across all workspaces
+global_router = APIRouter(
+    prefix="/workspaces/ticket-classifications",
+    tags=["Ticket Classification"],
+)
+
 
 # ============================================================
-# POST
+# HELPERS (pure translation, no DB)
+# ============================================================
+
+
+def _detail_to_response(
+    detail: service.ClassificationDetail,
+    execution_time: float,
+) -> TicketClassificationResponse:
+
+    return TicketClassificationResponse(
+        classification_id=str(detail.classification_id),
+        success=True,
+        total_tickets=detail.total_tickets,
+        classified_tickets=[
+            {
+                "ticket_id": str(ticket.ticket_id),
+                "classification": ticket.classification,
+                "confidence": ticket.confidence,
+                "reason": ticket.reason,
+            }
+            for ticket in detail.tickets
+        ],
+        execution_time=execution_time,
+    )
+
+
+def _global_to_response(
+    item: service.GlobalClassification,
+) -> GlobalTicketClassification:
+
+    return GlobalTicketClassification(
+        classification_id=str(item.classification_id),
+        workspace_id=str(item.workspace_id),
+        workspace_name=item.workspace_name,
+        model_name=item.model_name,
+        created_at=item.created_at,
+        total_tickets=item.total_tickets,
+        classified_tickets=[
+            GlobalClassifiedTicket(
+                ticket_id=str(ticket.ticket_id),
+                classification=ticket.classification,
+                confidence=ticket.confidence,
+                reason=ticket.reason,
+            )
+            for ticket in item.tickets
+        ],
+    )
+
+
+def _raise_http_from_service(exc: Exception) -> None:
+    """Map a domain exception to the corresponding HTTPException."""
+
+    if isinstance(exc, NotFoundError):
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    if isinstance(exc, ValidationError):
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    logger.exception("Unexpected service error")
+
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"Internal error: {exc}",
+    ) from exc
+
+
+# ============================================================
+# GLOBAL — GET (list all classifications across all workspaces)
+# ============================================================
+
+
+@global_router.get(
+    "",
+    response_model=GlobalTicketClassificationListResponse,
+)
+def list_all_ticket_classifications(
+    db: Session = Depends(get_db),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        results, total = service.list_all_classifications(
+            db=db,
+            limit=limit,
+            offset=offset,
+        )
+
+    except Exception as exc:
+
+        _raise_http_from_service(exc)
+
+    execution_time = round(
+        time.perf_counter() - start_time,
+        2,
+    )
+
+    return GlobalTicketClassificationListResponse(
+        success=True,
+        total=total,
+        classifications=[_global_to_response(item) for item in results],
+        execution_time=execution_time,
+    )
+
+
+# ============================================================
+# WORKSPACE — POST (create a classification run)
 # ============================================================
 
 
@@ -64,97 +188,27 @@ async def create_ticket_classification(
 
     start_time = time.perf_counter()
 
-    # --------------------------------------------------------
-    # 1. Check workspace
-    # --------------------------------------------------------
-
-    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-
-    if workspace is None:
-
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found.",
-        )
-
-    # --------------------------------------------------------
-    # 2. Create classification
-    # --------------------------------------------------------
-
     try:
 
-        record = await service.create_classification(
+        detail = await service.create_classification(
             db=db,
             workspace_id=workspace_id,
         )
 
-    except ValueError as exc:
-
-        logger.exception("Classification validation error")
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
     except Exception as exc:
 
-        # IMPORTANT:
-        # Print the actual error in development.
-        logger.exception("Ticket classification failed")
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to classify tickets: {str(exc)}",
-        ) from exc
-
-    # --------------------------------------------------------
-    # 3. Execution time
-    # --------------------------------------------------------
+        _raise_http_from_service(exc)
 
     execution_time = round(
         time.perf_counter() - start_time,
         2,
     )
 
-    # --------------------------------------------------------
-    # 4. Build response
-    # --------------------------------------------------------
-
-    classified_tickets = []
-
-    for item in record.items:
-
-        classified_tickets.append(
-            {
-                "ticket_id": str(item.ticket_id),
-                "classification": (item.classification),
-                "confidence": (
-                    float(item.confidence) if item.confidence is not None else 0.0
-                ),
-                "reason": (item.reason or ""),
-            }
-        )
-
-    # --------------------------------------------------------
-    # 5. Return response
-    # --------------------------------------------------------
-
-    return TicketClassificationResponse(
-        classification_id=str(record.id),
-        success=True,
-        total_tickets=len(classified_tickets),
-        classified_tickets=(classified_tickets),
-        execution_time=(execution_time),
-    )
+    return _detail_to_response(detail, execution_time)
 
 
 # ============================================================
-# GET
+# WORKSPACE — GET (one classification)
 # ============================================================
 
 
@@ -170,58 +224,21 @@ def get_ticket_classification(
 
     start_time = time.perf_counter()
 
-    # --------------------------------------------------------
-    # Find classification
-    # --------------------------------------------------------
+    try:
 
-    record = (
-        db.query(TicketClassification)
-        .filter(
-            TicketClassification.id == classification_id,
-            TicketClassification.workspace_id == workspace_id,
-        )
-        .first()
-    )
-
-    if record is None:
-
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Classification not found.",
+        detail = service.get_classification(
+            db=db,
+            workspace_id=workspace_id,
+            classification_id=classification_id,
         )
 
-    # --------------------------------------------------------
-    # Build response
-    # --------------------------------------------------------
+    except Exception as exc:
 
-    classified_tickets = []
-
-    for item in record.items:
-
-        classified_tickets.append(
-            {
-                "ticket_id": str(item.ticket_id),
-                "classification": (item.classification),
-                "confidence": (
-                    float(item.confidence) if item.confidence is not None else 0.0
-                ),
-                "reason": (item.reason or ""),
-            }
-        )
-
-    # --------------------------------------------------------
-    # Execution time
-    # --------------------------------------------------------
+        _raise_http_from_service(exc)
 
     execution_time = round(
         time.perf_counter() - start_time,
         2,
     )
 
-    return TicketClassificationResponse(
-        classification_id=str(record.id),
-        success=True,
-        total_tickets=len(classified_tickets),
-        classified_tickets=(classified_tickets),
-        execution_time=(execution_time),
-    )
+    return _detail_to_response(detail, execution_time)
