@@ -1,12 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.ai.ticket_normaliser import (
-    normalize_tickets as ai_normalize_tickets,
-)
 from app.models.ticket_normaliser import TicketNormalization
+
+# from app.ai.ticket_normalise import normalize_tickets
+from app.ai.ticket_normaliser import normalize_tickets
 
 
 async def create_normalization(
@@ -14,35 +13,34 @@ async def create_normalization(
     workspace_id: UUID,
     tickets: list[dict],
 ) -> TicketNormalization:
+
     # ---------------------------------------------------------
-    # 1. Get normalized tickets from AI
+    # 1. Send tickets to AI for normalization
+    # ---------------------------------------------------------
+    normalized = await normalize_tickets(tickets)
+
+    # ---------------------------------------------------------
+    # 2. Convert AI response into database format
     #
     # AI format:
     # {
     #     "id": "...",
     #     "description": "..."
     # }
-    # ---------------------------------------------------------
-    ai_normalized = await ai_normalize_tickets(tickets)
-
-    # ---------------------------------------------------------
-    # 2. Convert AI format to API/database format
     #
-    # API format:
+    # Database format:
     # {
     #     "ticket_id": "...",
     #     "description": "..."
     # }
     # ---------------------------------------------------------
-    normalized_tickets = []
-
-    for ticket in ai_normalized:
-        normalized_tickets.append(
-            {
-                "ticket_id": ticket["id"],
-                "description": ticket["description"],
-            }
-        )
+    normalized_tickets = [
+        {
+            "ticket_id": ticket["id"],
+            "description": ticket["description"],
+        }
+        for ticket in normalized
+    ]
 
     # ---------------------------------------------------------
     # 3. Save normalized tickets
@@ -63,28 +61,32 @@ def get_normalization(
     db: Session,
     workspace_id: UUID,
 ) -> TicketNormalization | None:
-    stmt = (
-        select(TicketNormalization)
-        .where(TicketNormalization.workspace_id == workspace_id)
+
+    return (
+        db.query(TicketNormalization)
+        .filter(TicketNormalization.workspace_id == workspace_id)
         .order_by(TicketNormalization.created_at.desc())
-        .limit(1)
+        .first()
     )
-
-    result = db.execute(stmt)
-
-    return result.scalar_one_or_none()
 
 
 def delete_normalizations(
     db: Session,
     workspace_id: UUID,
 ) -> int:
-    stmt = delete(TicketNormalization).where(
-        TicketNormalization.workspace_id == workspace_id
+
+    records = (
+        db.query(TicketNormalization)
+        .filter(TicketNormalization.workspace_id == workspace_id)
+        .all()
     )
 
-    result = db.execute(stmt)
+    if not records:
+        return 0
+
+    for record in records:
+        db.delete(record)
 
     db.commit()
 
-    return result.rowcount or 0
+    return len(records)

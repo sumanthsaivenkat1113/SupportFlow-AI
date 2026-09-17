@@ -6,10 +6,15 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.ticket_normaliser import (
     DeleteResponse,
-    TicketNormalizationRequest,
     TicketNormalizationResponse,
 )
 from app.services import ticket_normaliser as service
+from app.services import ticket_service
+
+# IMPORTANT:
+# Change this import if your Workspace model is located elsewhere.
+# from app.models.workspace import Workspace
+from app.models.workspaces import Workspace
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/tickets-normalization",
@@ -17,6 +22,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# POST
+# /workspaces/{workspace_id}/tickets-normalization
+# ---------------------------------------------------------
 @router.post(
     "",
     response_model=TicketNormalizationResponse,
@@ -24,14 +33,45 @@ router = APIRouter(
 )
 async def create_tickets_normalization(
     workspace_id: UUID,
-    payload: TicketNormalizationRequest,
     db: Session = Depends(get_db),
 ):
+    # ---------------------------------------------------------
+    # 1. Find workspace
+    # ---------------------------------------------------------
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+
+    if workspace is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found.",
+        )
+
     try:
+        # ---------------------------------------------------------
+        # 2. Get tickets belonging to this workspace
+        # ---------------------------------------------------------
+        ticket_result = ticket_service.list_tickets_for_workspace(
+            db=db,
+            workspace=workspace,
+            limit=200,
+            offset=0,
+        )
+
+        tickets = ticket_result["tickets"]
+
+        # ---------------------------------------------------------
+        # 3. Check whether tickets exist
+        # ---------------------------------------------------------
+        if not tickets:
+            raise ValueError("No tickets found for this workspace.")
+
+        # ---------------------------------------------------------
+        # 4. Normalize tickets
+        # ---------------------------------------------------------
         record = await service.create_normalization(
             db=db,
             workspace_id=workspace_id,
-            tickets=[ticket.model_dump() for ticket in payload.tickets],
+            tickets=tickets,
         )
 
     except ValueError as exc:
@@ -40,6 +80,9 @@ async def create_tickets_normalization(
             detail=str(exc),
         ) from exc
 
+    # ---------------------------------------------------------
+    # 5. Return normalized tickets
+    # ---------------------------------------------------------
     return TicketNormalizationResponse(
         success=True,
         ticket_normalization_id=str(record.id),
@@ -48,6 +91,10 @@ async def create_tickets_normalization(
     )
 
 
+# ---------------------------------------------------------
+# GET
+# /workspaces/{workspace_id}/tickets-normalization
+# ---------------------------------------------------------
 @router.get(
     "",
     response_model=TicketNormalizationResponse,
@@ -75,6 +122,10 @@ def get_tickets_normalization(
     )
 
 
+# ---------------------------------------------------------
+# DELETE
+# /workspaces/{workspace_id}/tickets-normalization
+# ---------------------------------------------------------
 @router.delete(
     "",
     response_model=DeleteResponse,
