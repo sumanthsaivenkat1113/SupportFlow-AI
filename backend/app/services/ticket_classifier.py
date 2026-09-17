@@ -8,25 +8,13 @@ from uuid import UUID
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.ai.ticket_classifier import (
-    classify_tickets,
-)
-from app.models.ticket_classification import (
-    TicketClassification,
-)
-from app.models.ticket_classification_item import (
-    TicketClassificationItem,
-)
-from app.models.workspaces import (
-    Workspace,
-)
-from app.services.exceptions import (
-    NotFoundError,
-    ValidationError,
-)
-from app.services.ticket_normaliser import (
-    get_normalization,
-)
+from app.ai.ticket_classifier import classify_tickets
+from app.models.tickets import Ticket
+from app.models.ticket_classification import TicketClassification
+from app.models.ticket_classification_item import TicketClassificationItem
+from app.models.workspaces import Workspace
+from app.services.exceptions import NotFoundError, ValidationError
+from app.services.ticket_normaliser import get_normalization
 
 # ============================================================
 # CONFIGURATION
@@ -36,7 +24,7 @@ MODEL_NAME = "qwen/qwen3.8-27b"
 
 
 # ============================================================
-# DTOs (returned by the service; no ORM leaks to API layer)
+# DTOs
 # ============================================================
 
 
@@ -102,7 +90,9 @@ def _require_workspace(
     return workspace
 
 
-def _to_detail(record: TicketClassification) -> ClassificationDetail:
+def _to_detail(
+    record: TicketClassification,
+) -> ClassificationDetail:
 
     tickets = [
         ClassifiedTicket(
@@ -121,6 +111,80 @@ def _to_detail(record: TicketClassification) -> ClassificationDetail:
     )
 
 
+def _build_ticket_id_map(
+    db: Session,
+    workspace_id: UUID,
+) -> dict[str, UUID]:
+    """
+    Build a mapping between the external/customer ticket ID
+    used by normalization/classification and the internal
+    database ticket UUID used by ticket_classification_items.
+
+    Example:
+
+        customer_ticket.ticket_id
+            4e55c93f-5205-4847-926d-53ea4424fceb
+
+                    ↓
+
+        tickets.id
+            28edff1f-58b2-45ed-b050-fd31657a9a9d
+    """
+
+    tickets = db.query(Ticket).filter(Ticket.workspace_id == workspace_id).all()
+
+    ticket_id_map: dict[str, UUID] = {}
+
+    for ticket in tickets:
+
+        customer_ticket = ticket.customer_ticket
+
+        if not customer_ticket:
+            continue
+
+        customer_ticket_id = customer_ticket.get("ticket_id")
+
+        if not customer_ticket_id:
+            continue
+
+        customer_ticket_id = str(customer_ticket_id)
+
+        ticket_id_map[customer_ticket_id] = ticket.id
+
+    return ticket_id_map
+
+
+def _validate_ticket_mapping(
+    classified: list[dict],
+    ticket_id_map: dict[str, UUID],
+) -> None:
+    """
+    Make sure every ticket returned by the classifier exists
+    in the workspace's tickets table.
+    """
+
+    missing_ticket_ids: list[str] = []
+
+    for result in classified:
+
+        customer_ticket_id = str(result["ticket_id"])
+
+        if customer_ticket_id not in ticket_id_map:
+            missing_ticket_ids.append(customer_ticket_id)
+
+    if missing_ticket_ids:
+
+        preview = ", ".join(missing_ticket_ids[:5])
+
+        if len(missing_ticket_ids) > 5:
+            preview += ", ..."
+
+        raise ValidationError(
+            "Some classified tickets could not be mapped "
+            f"to database tickets: {preview}"
+        )
+
+
 # ============================================================
 # CREATE
 # ============================================================
@@ -135,7 +199,10 @@ async def create_classification(
     # 1. Verify workspace exists
     # --------------------------------------------------------
 
-    _require_workspace(db, workspace_id)
+    _require_workspace(
+        db=db,
+        workspace_id=workspace_id,
+    )
 
     # --------------------------------------------------------
     # 2. Get latest normalization
@@ -167,14 +234,48 @@ async def create_classification(
 
     except ValueError as exc:
 
-        # AI output / input validation failures → 400
+        # AI output/input validation failures → 400
         raise ValidationError(str(exc)) from exc
 
     if not classified:
         raise ValidationError("No tickets were classified.")
 
     # --------------------------------------------------------
-    # 4. Persist parent + items in a single transaction
+    # 4. Build customer ticket ID → database ticket ID map
+    # --------------------------------------------------------
+    #
+    # IMPORTANT:
+    #
+    # AI returns:
+    #
+    #   customer_ticket.ticket_id
+    #
+    # But TicketClassificationItem.ticket_id is an FK to:
+    #
+    #   tickets.id
+    #
+    # Therefore we MUST translate the ID before inserting.
+    # --------------------------------------------------------
+
+    ticket_id_map = _build_ticket_id_map(
+        db=db,
+        workspace_id=workspace_id,
+    )
+
+    if not ticket_id_map:
+        raise ValidationError("No imported tickets found for this workspace.")
+
+    # --------------------------------------------------------
+    # 5. Validate all AI results can be mapped
+    # --------------------------------------------------------
+
+    _validate_ticket_mapping(
+        classified=classified,
+        ticket_id_map=ticket_id_map,
+    )
+
+    # --------------------------------------------------------
+    # 6. Persist parent + items in one transaction
     # --------------------------------------------------------
 
     try:
@@ -191,10 +292,25 @@ async def create_classification(
 
         for result in classified:
 
+            customer_ticket_id = str(result["ticket_id"])
+
+            # ------------------------------------------------
+            # IMPORTANT:
+            #
+            # Use the INTERNAL database ticket UUID here.
+            #
+            # Do NOT use:
+            #     UUID(result["ticket_id"])
+            #
+            # because that is the customer/external ticket ID.
+            # ------------------------------------------------
+
+            database_ticket_id = ticket_id_map[customer_ticket_id]
+
             db.add(
                 TicketClassificationItem(
                     classification_id=record.id,
-                    ticket_id=UUID(result["ticket_id"]),
+                    ticket_id=database_ticket_id,
                     classification=result["classification"],
                     confidence=result["confidence"],
                     reason=result["reason"],
@@ -206,11 +322,10 @@ async def create_classification(
     except Exception:
 
         db.rollback()
-
         raise
 
     # --------------------------------------------------------
-    # 5. Refresh + return DTO
+    # 7. Refresh + return DTO
     # --------------------------------------------------------
 
     db.refresh(record)
@@ -234,10 +349,13 @@ def list_classifications(
     # 1. Verify workspace exists
     # --------------------------------------------------------
 
-    _require_workspace(db, workspace_id)
+    _require_workspace(
+        db,
+        workspace_id,
+    )
 
     # --------------------------------------------------------
-    # 2. Query classification runs (newest first)
+    # 2. Query classification runs
     # --------------------------------------------------------
 
     base_query = db.query(TicketClassification).filter(
@@ -254,7 +372,7 @@ def list_classifications(
     )
 
     # --------------------------------------------------------
-    # 3. Aggregate item counts per classification
+    # 3. Aggregate item counts
     # --------------------------------------------------------
 
     counts: dict[UUID, dict[str, int]] = {}
@@ -291,7 +409,12 @@ def list_classifications(
             .all()
         )
 
-        for classification_id, item_total, automatable, human_review in rows:
+        for (
+            classification_id,
+            item_total,
+            automatable,
+            human_review,
+        ) in rows:
 
             counts[classification_id] = {
                 "total": int(item_total),
@@ -309,7 +432,11 @@ def list_classifications(
 
         stats = counts.get(
             record.id,
-            {"total": 0, "automatable": 0, "human_review": 0},
+            {
+                "total": 0,
+                "automatable": 0,
+                "human_review": 0,
+            },
         )
 
         summaries.append(
@@ -341,8 +468,12 @@ def list_all_classifications(
     # 1. Query classification runs joined with workspace
     # --------------------------------------------------------
 
-    base_query = db.query(TicketClassification, Workspace).join(
-        Workspace, Workspace.id == TicketClassification.workspace_id
+    base_query = db.query(
+        TicketClassification,
+        Workspace,
+    ).join(
+        Workspace,
+        Workspace.id == TicketClassification.workspace_id,
     )
 
     total = base_query.count()
@@ -404,7 +535,10 @@ def get_classification(
     # 1. Verify workspace exists
     # --------------------------------------------------------
 
-    _require_workspace(db, workspace_id)
+    _require_workspace(
+        db,
+        workspace_id,
+    )
 
     # --------------------------------------------------------
     # 2. Find classification
