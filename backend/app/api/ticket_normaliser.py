@@ -37,9 +37,7 @@ async def create_tickets_normalization(
     workspace_id: UUID,
     db: Session = Depends(get_db),
 ):
-<<<<<<< HEAD
     start_time = time.perf_counter()
-=======
     # ---------------------------------------------------------
     # 1. Find workspace
     # ---------------------------------------------------------
@@ -50,7 +48,6 @@ async def create_tickets_normalization(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found.",
         )
->>>>>>> feat/ticket-normalization-auto-fetch
 
     try:
         # ---------------------------------------------------------
@@ -86,14 +83,11 @@ async def create_tickets_normalization(
             detail=str(exc),
         ) from exc
 
-<<<<<<< HEAD
     execution_time = round(time.perf_counter() - start_time, 2)
 
-=======
     # ---------------------------------------------------------
     # 5. Return normalized tickets
     # ---------------------------------------------------------
->>>>>>> feat/ticket-normalization-auto-fetch
     return TicketNormalizationResponse(
         success=True,
         ticket_normalization_id=str(record.id),
