@@ -27,6 +27,7 @@ class TicketNormalizationResponse(BaseModel):
     ticket_normalization_id: str
     total_tickets: int
     normalized_tickets: List[NormalizedTicket]
+    time_execution: float | None = None
 
 
 class DeleteResponse(BaseModel):

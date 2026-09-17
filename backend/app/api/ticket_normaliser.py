@@ -1,3 +1,5 @@
+import time
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,6 +29,8 @@ async def create_tickets_normalization(
     payload: TicketNormalizationRequest,
     db: Session = Depends(get_db),
 ):
+    start_time = time.perf_counter()
+
     try:
         record = await service.create_normalization(
             db=db,
@@ -40,11 +44,14 @@ async def create_tickets_normalization(
             detail=str(exc),
         ) from exc
 
+    execution_time = round(time.perf_counter() - start_time, 2)
+
     return TicketNormalizationResponse(
         success=True,
         ticket_normalization_id=str(record.id),
         total_tickets=len(record.normalized_tickets),
         normalized_tickets=record.normalized_tickets,
+        time_execution=execution_time,
     )
 
 
