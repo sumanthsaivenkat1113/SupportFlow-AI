@@ -1,3 +1,5 @@
+import time
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -33,13 +35,22 @@ async def create_workspace(
     pdf_files: Annotated[list[UploadFile], File(...)],
     chunking_strategy: Annotated[ChunkingStrategy, Form()] = ChunkingStrategy.SEMANTIC,
 ):
-    return await workspace_service.create_workspace_with_files(
+    start_time = time.perf_counter()
+
+    response = await workspace_service.create_workspace_with_files(
         db=db,
         user_id=user.id,
         workspace_name=workspace_name,
         pdf_files=pdf_files,
         chunking_strategy=chunking_strategy,
     )
+
+    response.time_execution = round(
+        (time.perf_counter() - start_time),
+        2,
+    )
+
+    return response
 
 
 # ============================================================

@@ -36,3 +36,4 @@ class WorkspaceCreateResponse(BaseModel):
     total_pdf_files: int
     chunking_strategy: ChunkingStrategy
     no_of_chunks: int
+    time_execution: float | None = None
