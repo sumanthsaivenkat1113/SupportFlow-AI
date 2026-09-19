@@ -1,3 +1,5 @@
+# app/api/ticket_normaliser.py
+
 import time
 
 from uuid import UUID
@@ -13,9 +15,6 @@ from app.schemas.ticket_normaliser import (
 from app.services import ticket_normaliser as service
 from app.services import ticket_service
 
-# IMPORTANT:
-# Change this import if your Workspace model is located elsewhere.
-# from app.models.workspace import Workspace
 from app.models.workspaces import Workspace
 
 router = APIRouter(
@@ -24,10 +23,6 @@ router = APIRouter(
 )
 
 
-# ---------------------------------------------------------
-# POST
-# /workspaces/{workspace_id}/tickets-normalization
-# ---------------------------------------------------------
 @router.post(
     "",
     response_model=TicketNormalizationResponse,
@@ -38,9 +33,7 @@ async def create_tickets_normalization(
     db: Session = Depends(get_db),
 ):
     start_time = time.perf_counter()
-    # ---------------------------------------------------------
-    # 1. Find workspace
-    # ---------------------------------------------------------
+
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
 
     if workspace is None:
@@ -50,9 +43,6 @@ async def create_tickets_normalization(
         )
 
     try:
-        # ---------------------------------------------------------
-        # 2. Get tickets belonging to this workspace
-        # ---------------------------------------------------------
         ticket_result = ticket_service.list_tickets_for_workspace(
             db=db,
             workspace=workspace,
@@ -62,15 +52,9 @@ async def create_tickets_normalization(
 
         tickets = ticket_result["tickets"]
 
-        # ---------------------------------------------------------
-        # 3. Check whether tickets exist
-        # ---------------------------------------------------------
         if not tickets:
             raise ValueError("No tickets found for this workspace.")
 
-        # ---------------------------------------------------------
-        # 4. Normalize tickets
-        # ---------------------------------------------------------
         record = await service.create_normalization(
             db=db,
             workspace_id=workspace_id,
@@ -85,9 +69,6 @@ async def create_tickets_normalization(
 
     execution_time = round(time.perf_counter() - start_time, 2)
 
-    # ---------------------------------------------------------
-    # 5. Return normalized tickets
-    # ---------------------------------------------------------
     return TicketNormalizationResponse(
         success=True,
         ticket_normalization_id=str(record.id),
@@ -97,10 +78,6 @@ async def create_tickets_normalization(
     )
 
 
-# ---------------------------------------------------------
-# GET
-# /workspaces/{workspace_id}/tickets-normalization
-# ---------------------------------------------------------
 @router.get(
     "",
     response_model=TicketNormalizationResponse,
@@ -128,10 +105,6 @@ def get_tickets_normalization(
     )
 
 
-# ---------------------------------------------------------
-# DELETE
-# /workspaces/{workspace_id}/tickets-normalization
-# ---------------------------------------------------------
 @router.delete(
     "",
     response_model=DeleteResponse,

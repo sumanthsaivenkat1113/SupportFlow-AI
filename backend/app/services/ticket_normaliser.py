@@ -21,28 +21,41 @@ async def create_normalization(
 ) -> TicketNormalization:
 
     # ---------------------------------------------------------
-    # 1. Flatten nested customer_ticket into AI-friendly input
+    # 1. Build AI input.
+    #
+    # Ticket source schemas vary wildly (100+ possible shapes:
+    # flat fields, nested "details.body", Jira-style "fields.*",
+    # arbitrary custom exports, etc). Rather than hardcoding
+    # every possible field path in Python, we hand the AI the
+    # raw, untouched ticket JSON and let it locate the human
+    # ticket id and the issue/description text itself.
+    #
+    # The one thing we DO need to guarantee ourselves is a safe
+    # join key so we can validate the AI's response 1:1 against
+    # what we sent. Business ticket ids ("F1-1001", "CUST-3001",
+    # Jira "key", etc.) are not reliable for that — they differ
+    # in shape and aren't guaranteed present. The database row's
+    # own id IS always a real, unique UUID, so we use that as the
+    # internal join key and let ticket_id be AI-extracted content.
     # ---------------------------------------------------------
 
     ai_input: list[dict] = []
 
     for row in tickets:
 
-        customer = row.get("customer_ticket") or {}
+        internal_id = row.get("id")
+        raw_ticket = row.get("customer_ticket") or {}
 
-        ticket_id = customer.get("ticket_id") or row.get("id")
-        description = (customer.get("description") or "").strip()
+        if not internal_id:
+            raise ValueError("Ticket row is missing its internal id.")
 
-        if not ticket_id:
-            raise ValueError(f"Ticket row {row.get('id')} has no customer ticket id.")
-
-        if not description:
-            raise ValueError(f"Ticket {ticket_id} has an empty description.")
+        if not raw_ticket:
+            raise ValueError(f"Ticket row {internal_id} has no ticket data.")
 
         ai_input.append(
             {
-                "ticket_id": str(ticket_id),
-                "description": description,
+                "internal_id": str(internal_id),
+                "raw_ticket": raw_ticket,
             }
         )
 
@@ -50,7 +63,7 @@ async def create_normalization(
         raise ValueError("No tickets provided for normalization.")
 
     # ---------------------------------------------------------
-    # 2. Send flat tickets to AI
+    # 2. Send raw tickets to AI for schema-agnostic extraction.
     #
     # normalize_tickets is synchronous (Groq client is sync),
     # so we push it to a worker thread to avoid blocking the
@@ -63,28 +76,21 @@ async def create_normalization(
         raise ValueError("AI returned no normalized tickets.")
 
     # ---------------------------------------------------------
-    # 3. Map AI output → database format
+    # 3. Map AI output → database format.
+    #
+    # normalize_tickets already validated internal_id coverage
+    # (no missing/duplicate/unknown rows) and guarantees a
+    # non-empty ticket_id (falling back to internal_id) and a
+    # non-empty description. We just reshape for storage here.
     # ---------------------------------------------------------
 
     normalized_tickets: list[dict] = []
 
     for item in normalized:
-
-        ticket_id = item.get("ticket_id") or item.get("id")
-        description = (item.get("description") or "").strip()
-
-        if not ticket_id:
-            raise ValueError(f"AI returned an item without a ticket id: {item}")
-
-        if not description:
-            raise ValueError(
-                f"AI returned an empty description for ticket {ticket_id}."
-            )
-
         normalized_tickets.append(
             {
-                "ticket_id": str(ticket_id),
-                "description": description,
+                "ticket_id": item["ticket_id"],
+                "description": item["description"],
             }
         )
 
