@@ -52,3 +52,9 @@ class Ticket(Base):
         "TicketImport",
         back_populates="tickets",
     )
+
+    resolutions = relationship(
+        "TicketResolution",
+        back_populates="tickets",
+        cascade="all, delete-orphan",
+    )

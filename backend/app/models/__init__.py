@@ -7,6 +7,7 @@ from app.models.tickets import Ticket
 from app.models.ticket_normaliser import TicketNormalization
 from app.models.ticket_classification import TicketClassification
 from app.models.ticket_classification_item import TicketClassificationItem
+from app.models.ticket_resolver import TicketResolution
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "TicketNormalization",
     "TicketClassification",
     "TicketClassificationItem",
+    "TicketResolution",
 ]
