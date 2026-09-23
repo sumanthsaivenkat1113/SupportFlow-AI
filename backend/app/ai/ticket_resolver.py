@@ -50,9 +50,11 @@ class TPMRateLimiter:
 
 RATE_LIMITER = TPMRateLimiter(tokens_per_minute=7800)
 
-# 5 concurrent calls per batch (matches batch size)
-CONCURRENCY = 5
-SEM = asyncio.Semaphore(CONCURRENCY)
+# Default concurrency used only when the caller doesn't pass its own semaphore.
+# The service layer now sizes a semaphore to match `batch_size` per request
+# and passes it in, so this is just a safe fallback for standalone calls.
+DEFAULT_CONCURRENCY = 5
+_DEFAULT_SEM = asyncio.Semaphore(DEFAULT_CONCURRENCY)
 
 
 SYSTEM_PROMPT = """You are a customer support assistant.
@@ -109,10 +111,15 @@ async def generate_resolution(
     context: str,
     max_completion: int = 250,
     max_retries: int = 3,
+    semaphore: asyncio.Semaphore | None = None,
 ) -> dict:
     """
     Generate a grounded ticket resolution using Groq.
     `context` is the retrieved policy text (already prepared by the service layer).
+
+    `semaphore` lets the caller (service layer) control concurrency per request,
+    e.g. sized to match the request's `batch_size`. Falls back to a shared
+    module-level semaphore if not provided.
     """
     # Minimal, token-efficient prompt
     user_prompt = f"Context:\n{context}\n\nTicket:\n{question}"
@@ -121,8 +128,9 @@ async def generate_resolution(
     ticket_start = time.perf_counter()
     limiter_wait_total = 0.0
     api_time_total = 0.0
+    sem = semaphore or _DEFAULT_SEM
 
-    async with SEM:
+    async with sem:
         for attempt in range(max_retries):
             waited = await RATE_LIMITER.acquire(est_tokens)
             limiter_wait_total += waited

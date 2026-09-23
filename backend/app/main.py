@@ -9,6 +9,8 @@ from app.api.ticket_classifier import (
     global_router as ticket_classifier_global_router,
     router as ticket_classifier_router,
 )
+
+from app.api.ticket_resolver import router as ticket_resolver_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -44,6 +46,7 @@ app.include_router(ticket_normalise)
 # is matched before any `/workspaces/{workspace_id}/...` patterns.
 app.include_router(ticket_classifier_global_router)
 app.include_router(ticket_classifier_router)
+app.include_router(ticket_resolver_router)
 
 
 # ------------------------------------------------------------

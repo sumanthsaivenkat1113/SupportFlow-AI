@@ -1,3 +1,7 @@
+# ----------------------------------------------------------------------------------
+# app/api/ticket_resolver.py
+# ----------------------------------------------------------------------------------
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,7 +12,10 @@ from app.schemas.ticket_resolver import (
     TicketResolutionBatchResponse,
     TicketResolutionRead,
 )
-from app.services.ticket_resolver import resolve_workspace_tickets
+from app.services.ticket_resolver import (
+    list_workspace_ticket_resolutions,
+    resolve_workspace_tickets,
+)
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/ticket-resolutions",
@@ -63,13 +70,4 @@ def list_ticket_resolutions(
     """
     List all persisted ticket resolutions for a workspace.
     """
-    from app.models import Ticket, TicketResolution
-
-    rows = (
-        db.query(TicketResolution)
-        .join(Ticket, Ticket.id == TicketResolution.ticket_id)
-        .filter(Ticket.workspace_id == workspace_id)
-        .order_by(TicketResolution.created_at.desc())
-        .all()
-    )
-    return rows
+    return list_workspace_ticket_resolutions(db=db, workspace_id=workspace_id)

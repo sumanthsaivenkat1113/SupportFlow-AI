@@ -53,8 +53,8 @@ class Ticket(Base):
         back_populates="tickets",
     )
 
-    resolutions = relationship(
+    resolutions: Mapped[list["TicketResolution"]] = relationship(
         "TicketResolution",
-        back_populates="tickets",
+        back_populates="ticket",
         cascade="all, delete-orphan",
     )
