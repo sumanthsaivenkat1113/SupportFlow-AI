@@ -55,6 +55,13 @@ class TicketResolution(Base):
         index=True,
     )
 
+    # ai-automated | human-required
+    generated: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        index=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),

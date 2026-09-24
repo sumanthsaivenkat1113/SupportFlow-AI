@@ -11,6 +11,7 @@ from app.api.ticket_classifier import (
 )
 
 from app.api.ticket_resolver import router as ticket_resolver_router
+from app.api.tickets_export import router as tickets_export_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -47,6 +48,7 @@ app.include_router(ticket_normalise)
 app.include_router(ticket_classifier_global_router)
 app.include_router(ticket_classifier_router)
 app.include_router(ticket_resolver_router)
+app.include_router(tickets_export_router)
 
 
 # ------------------------------------------------------------
