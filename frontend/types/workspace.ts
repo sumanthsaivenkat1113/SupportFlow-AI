@@ -33,3 +33,28 @@ export interface WorkspaceFormData {
 export interface TicketFormData {
   ticketFile: File | null;
 }
+
+
+export type NormalizedTicket = {
+  ticket_id: string;
+  description: string;
+};
+
+export type TicketNormalizationResponse = {
+  success: boolean;
+  ticket_normalization_id: string;
+  total_tickets: number;
+  normalized_tickets: NormalizedTicket[];
+  time_execution: number | null;
+};
+
+
+export type TicketResolutionResponse = {
+  success: boolean;
+  workspace_id: string; 
+  total_tickets: number;
+  total_batches: number;
+  batch_size: number;
+  resolutions: Record<string, any>[];
+  time_execution: number | null;
+};

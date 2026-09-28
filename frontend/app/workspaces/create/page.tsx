@@ -19,7 +19,12 @@ import { WorkspaceNextSteps } from "@/components/workspaces/create/WorkspaceNext
 import { DataSafetyCard } from "@/components/workspaces/create/DataSafetyCard";
 
 // API & Types
-import { createWorkspace, uploadCustomerTickets } from "@/lib/api/workspaces";
+import {
+  createWorkspace,
+  uploadCustomerTickets,
+  ticketNormalization,
+  ticketResolution
+} from "@/lib/api/workspaces";
 import { ChunkingStrategy } from "@/types/workspace";
 
 export default function CreateWorkspacePage() {
@@ -30,19 +35,19 @@ export default function CreateWorkspacePage() {
   // ============================================================================
   // ⚠️ ALL HOOKS MUST BE DECLARED HERE, BEFORE ANY EARLY RETURNS
   // ============================================================================
-  
+
   // Step state
   const [currentStep, setCurrentStep] = useState(1);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  
+
   // Step 1 state
   const [workspaceName, setWorkspaceName] = useState("");
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [chunkingStrategy, setChunkingStrategy] = useState<ChunkingStrategy>("Semantic");
-  
+
   // Step 2 state
   const [ticketFile, setTicketFile] = useState<File | null>(null);
-  
+
   // Loading and error states
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [isUploadingTickets, setIsUploadingTickets] = useState(false);
@@ -64,7 +69,7 @@ export default function CreateWorkspacePage() {
   const validateStep1 = useCallback((): boolean => {
     const nameError = validateWorkspaceName();
     setWorkspaceError(nameError);
-    
+
     if (nameError) return false;
     if (pdfFiles.length === 0) {
       setWorkspaceError("Please upload at least one PDF file");
@@ -74,7 +79,7 @@ export default function CreateWorkspacePage() {
       setWorkspaceError("You can upload a maximum of 5 PDF files");
       return false;
     }
-    
+
     return true;
   }, [validateWorkspaceName, pdfFiles]);
 
@@ -89,10 +94,10 @@ export default function CreateWorkspacePage() {
   // Step 1 submission
   const handleNextToStep2 = useCallback(async () => {
     if (!validateStep1()) return;
-    
+
     setIsCreatingWorkspace(true);
     setWorkspaceError(undefined);
-    
+
     try {
       // STRICT CHECK: Get the token and ensure it exists
       const token = await getToken();
@@ -106,7 +111,7 @@ export default function CreateWorkspacePage() {
         chunkingStrategy,
         token,
       });
-      
+
       if (response.success && response.workspace_id) {
         setWorkspaceId(response.workspace_id);
         setCurrentStep(2);
@@ -127,10 +132,10 @@ export default function CreateWorkspacePage() {
   // Step 2 submission
   const handleCreateWorkspace = useCallback(async () => {
     if (!validateStep2() || !workspaceId) return;
-    
+
     setIsUploadingTickets(true);
     setTicketError(undefined);
-    
+
     try {
       // STRICT CHECK: Get the token and ensure it exists
       const token = await getToken();
@@ -143,9 +148,26 @@ export default function CreateWorkspacePage() {
         ticketFile: ticketFile!,
         token,
       });
-      
+
+      // steps; ticket normalization and ticket resolution
+
+      // Ticket Normalization
+
+      await ticketNormalization({
+        workspaceId,
+        token
+      })
+
+      // Ticket Resolution
+
+      await ticketResolution({
+        workspaceId,
+        token
+      })
+
+
       // Success - navigate to workspaces page
-      router.push("/workspaces");
+      router.push(`/workspaces/${workspaceId}/export`);
     } catch (error) {
       if (error instanceof Error) {
         setTicketError(error.message);
@@ -197,7 +219,7 @@ export default function CreateWorkspacePage() {
               <ArrowLeft className="w-4 h-4" />
               Back to Workspaces
             </Link>
-            
+
             <div>
               <h1 className="text-3xl font-bold text-[#F8FAFC] mb-2">
                 Create Workspace
@@ -227,7 +249,7 @@ export default function CreateWorkspacePage() {
                   onChunkingStrategyChange={setChunkingStrategy}
                   error={workspaceError}
                 />
-                
+
                 {currentStep === 1 && (
                   <div className="flex justify-end mt-6">
                     <button
@@ -236,10 +258,9 @@ export default function CreateWorkspacePage() {
                       className={`
                         inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium
                         transition-all duration-200
-                        ${
-                          isStep1Valid && !isCreatingWorkspace
-                            ? "bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] text-white hover:from-[#554CF0] hover:to-[#7C4FE0] shadow-lg shadow-[#635BFF]/25"
-                            : "bg-[#1D2942] text-[#6B7894] cursor-not-allowed"
+                        ${isStep1Valid && !isCreatingWorkspace
+                          ? "bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] text-white hover:from-[#554CF0] hover:to-[#7C4FE0] shadow-lg shadow-[#635BFF]/25"
+                          : "bg-[#1D2942] text-[#6B7894] cursor-not-allowed"
                         }
                       `}
                     >
@@ -267,7 +288,7 @@ export default function CreateWorkspacePage() {
                     onTicketFileChange={setTicketFile}
                     error={ticketError}
                   />
-                  
+
                   <div className="flex justify-end mt-6">
                     <button
                       onClick={handleCreateWorkspace}
@@ -275,10 +296,9 @@ export default function CreateWorkspacePage() {
                       className={`
                         inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium
                         transition-all duration-200
-                        ${
-                          isStep2Valid && !isUploadingTickets
-                            ? "bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] text-white hover:from-[#554CF0] hover:to-[#7C4FE0] shadow-lg shadow-[#635BFF]/25"
-                            : "bg-[#1D2942] text-[#6B7894] cursor-not-allowed"
+                        ${isStep2Valid && !isUploadingTickets
+                          ? "bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] text-white hover:from-[#554CF0] hover:to-[#7C4FE0] shadow-lg shadow-[#635BFF]/25"
+                          : "bg-[#1D2942] text-[#6B7894] cursor-not-allowed"
                         }
                       `}
                     >

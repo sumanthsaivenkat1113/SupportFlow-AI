@@ -3,6 +3,8 @@ import {
   ChunkingStrategy,
   CreateWorkspaceResponse,
   UploadTicketsResponse,
+  TicketNormalizationResponse,
+  TicketResolutionResponse
 } from "@/types/workspace";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -46,7 +48,7 @@ export async function createWorkspace({
   workspaceName: string;
   pdfFiles: File[];
   chunkingStrategy: ChunkingStrategy;
-  token: string; 
+  token: string;
 }): Promise<CreateWorkspaceResponse> {
   const formData = new FormData();
   formData.append("workspace_name", workspaceName.trim());
@@ -92,4 +94,54 @@ export async function uploadCustomerTickets({
   );
 
   return handleResponse<UploadTicketsResponse>(response);
+}
+
+
+// Ticket Normalization
+
+export async function ticketNormalization({
+  workspaceId,
+  token,
+}: {
+  workspaceId: string;
+  token: string;
+}
+) {
+  if (!API_BASE_URL) throw new Error("API URL is not configured");
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${workspaceId}/tickets-normalization`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: workspaceId,
+    }
+  );
+  return handleResponse<TicketNormalizationResponse>(response);
+}
+
+
+
+// Ticket Resolution
+
+export async function ticketResolution({
+  workspaceId,
+  token,
+}: {
+  workspaceId: string;
+  token: string;
+}) { 
+  if (!API_BASE_URL) throw new Error("API URL is not configured");
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${workspaceId}/ticket-resolutions`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      body: workspaceId,
+    }
+  );
+  return handleResponse<TicketResolutionResponse>(response);
 }
