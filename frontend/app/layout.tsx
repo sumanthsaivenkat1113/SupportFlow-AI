@@ -21,8 +21,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <ClerkProvider
-      signInForceRedirectUrl="/dashboard"
-      signUpForceRedirectUrl="/dashboard"
+      signInForceRedirectUrl="/workspaces/create"
+      signUpForceRedirectUrl="/workspaces/create"
     >
       <html
         lang="en"

@@ -6,10 +6,9 @@ import { LayoutDashboard, FolderKanban, Settings, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navigationItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+
   { label: "Workspaces", href: "/workspaces/create", icon: FolderKanban },
-  { label: "Knowledge Base", href: "/knowledge-base", icon: Sparkles },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Workspaces HUB", href: "/workspaces/hub", icon: Sparkles },
 ];
 
 export function DashboardSidebar() {
