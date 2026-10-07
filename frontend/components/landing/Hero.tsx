@@ -1,5 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import ProductPreview from "./ProductPreview";
+import { Show, SignUpButton } from "@clerk/nextjs";
+import Link from "next/link";
 
 interface HeroProps {
   scrollTo: (id: string) => void;
@@ -47,21 +49,41 @@ export default function Hero({ scrollTo }: HeroProps) {
 
           {/* CTA */}
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href="/workspace/new"
-              className="group flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#050816] transition hover:bg-slate-200"
-            >
-              Create workspace
-              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </a>
+            {/* Signed in: go directly to workspace creation */}
+            <Show when="signed-in">
+              <Link
+                href="/workspaces/create"
+                className="group flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#050816] transition hover:bg-slate-200"
+              >
+                Create workspace
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </Link>
+            </Show>
 
+            {/* Signed out: open sign-up modal, then redirect to workspace creation */}
+            <Show when="signed-out">
+              <SignUpButton mode="modal" forceRedirectUrl="/workspaces/create">
+                <button
+                  type="button"
+                  className="group flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#050816] transition hover:bg-slate-200"
+                >
+                  Create workspace
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </button>
+              </SignUpButton>
+            </Show>
+
+            {/* See how it works */}
             <button
+              type="button"
               onClick={() => scrollTo("workflow")}
               className="flex h-11 items-center justify-center gap-2 rounded-lg border border-[#1D2942] bg-[#0D1426]/70 px-6 text-sm font-medium text-slate-200 transition hover:border-[#33415F] hover:bg-[#111A30]"
             >
               See how it works
             </button>
           </div>
+
+
 
           <p className="mt-5 text-xs text-[#6B7894]">
             Built for startups and lean support teams.
