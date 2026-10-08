@@ -77,7 +77,7 @@ export default function Navbar({
 
           {/* Signed Out */}
           <Show when="signed-out">
-            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+            <SignInButton mode="modal" forceRedirectUrl="/workspace/new">
               <button className="px-3 py-2 text-sm font-medium text-slate-300 transition hover:text-white">
                 Sign in
               </button>
