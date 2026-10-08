@@ -2,7 +2,7 @@
 
 ### AI-powered customer support automation for startups
 
-Turn your company policies into a searchable knowledge base, resolve support tickets with **grounded RAG**, and automatically route what AI can't safely handle to your human team.
+>**Turn your company policies into a searchable knowledge base, resolve support tickets with **grounded RAG**, and automatically route what AI can't safely handle to your human team.**
 
 ![SupportFlow AI Landing Page](./docs/images/landing-page.png)
 
