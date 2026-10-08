@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
+from app.core.config import settings
 from app.core.database import Base, engine
 
 # Import all models so Alembic can detect their tables
@@ -12,8 +13,6 @@ from app.models.document_chunks import DocumentChunk
 from app.models.ticket_imports import TicketImport
 from app.models.tickets import Ticket
 from app.models.ticket_normaliser import TicketNormalization
-from app.models.ticket_classification import TicketClassification
-from app.models.ticket_classification_item import TicketClassificationItem
 
 # Alembic Config object
 config = context.config
@@ -24,7 +23,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-# SQLAlchemy metadata for autogenerate
+# SQLAlchemy metadata used by Alembic autogenerate
 target_metadata = Base.metadata
 
 
@@ -32,7 +31,7 @@ def run_migrations_offline() -> None:
     """Run migrations in offline mode."""
 
     context.configure(
-        url=str(engine.url),
+        url=settings.DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={
@@ -51,6 +50,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,
         )
 
         with context.begin_transaction():

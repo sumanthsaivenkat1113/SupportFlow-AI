@@ -29,9 +29,9 @@ def get_workspace_ticket_export_data(
         db: SQLAlchemy database session.
         workspace_id: Workspace UUID.
         generated:
-            - "ai-automated" -> only AI automated tickets
-            - "human-required" -> only human required tickets
-            - None -> all tickets
+        - "ai-automated" -> only automatically resolved tickets
+        - "human-required" -> only tickets requiring human review
+        - None -> all tickets
 
     Returns:
         List of exportable ticket resolution records.
@@ -49,7 +49,7 @@ def get_workspace_ticket_export_data(
     )
 
     # ------------------------------------------------------------
-    # Filter by generated classification when requested
+    # # Filter by resolution outcome when requested
     # ------------------------------------------------------------
 
     if generated is not None:

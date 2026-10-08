@@ -41,8 +41,6 @@ class TicketResolutionResult(BaseModel):
 
     ticket_resolution: str
 
-    # AI classification:
-    # "ai-automated" | "human-required"
     generated: str
 
     context: str | None = None
@@ -66,8 +64,6 @@ class TicketResolutionRead(BaseModel):
 
     response: str
 
-    # AI classification:
-    # "ai-automated" | "human-required"
     generated: str
 
     context: str | None

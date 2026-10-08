@@ -5,8 +5,6 @@ from app.models.document_chunks import DocumentChunk
 from app.models.ticket_imports import TicketImport
 from app.models.tickets import Ticket
 from app.models.ticket_normaliser import TicketNormalization
-from app.models.ticket_classification import TicketClassification
-from app.models.ticket_classification_item import TicketClassificationItem
 from app.models.ticket_resolver import TicketResolution
 
 __all__ = [
@@ -17,7 +15,5 @@ __all__ = [
     "TicketImport",
     "Ticket",
     "TicketNormalization",
-    "TicketClassification",
-    "TicketClassificationItem",
     "TicketResolution",
 ]

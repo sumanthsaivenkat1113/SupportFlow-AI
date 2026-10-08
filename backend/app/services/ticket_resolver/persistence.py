@@ -62,8 +62,8 @@ def persist_resolutions(
                 generated,
             )
 
-            # A failed/invalid AI classification should never be treated
-            # as automatically resolvable.
+            # Invalid or missing resolution outcome should never be
+            # treated as automatically resolvable.
             generated = "human-required"
 
         row = TicketResolution(
