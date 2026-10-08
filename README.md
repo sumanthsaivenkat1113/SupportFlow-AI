@@ -331,9 +331,6 @@ This project is licensed under the [MIT License](./LICENSE).
 
 Passionate about building **clean, scalable, and intelligent applications** that combine modern web technologies with AI to create meaningful user experiences.
 
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?logo=github&logoColor=white)](https://github.com/your-username)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/your-profile)
-[![Email](https://img.shields.io/badge/Email-Contact-EA4335?logo=gmail&logoColor=white)](mailto:your-email@example.com)
 
 ---
 
